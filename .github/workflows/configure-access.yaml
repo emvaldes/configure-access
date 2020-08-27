@@ -1,0 +1,66 @@
+name: GitHub Actions - Configure Access
+on:
+
+####----------------------------------------------------------------------------
+  workflow_dispatch:
+    name: Manual Deployment
+    description: 'Triggering Manual Deployment'
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+      tags:
+        description: 'Configure Access'
+####----------------------------------------------------------------------------
+  push:
+    branches: [ master ]
+    paths:
+      - action.yaml
+####----------------------------------------------------------------------------
+env:
+  ## AWS_ACCESS_KEY_ID
+  ## AWS_DEFAULT_ACCOUNT
+  ## AWS_DEFAULT_PROFILE
+  ## AWS_DEFAULT_REGION
+  ## AWS_SECRET_ACCESS_KEY
+  ## DEPLOY_TERRAFORM
+  ## DESTROY_TERRAFORM
+  ## DEVOPS_ASSUMEROLE_POLICY
+  ## DEVOPS_BOUNDARIES_POLICY
+  ## DEVOPS_ACCESS_POLICY
+  ## DEVOPS_ACCESS_ROLE
+  ## DEVOPS_ACCOUNT_NAME
+  ## INSPECT_DEPLOYMENT
+  PRIVATE_KEYPAIR_FILE: ${{ secrets.PRIVATE_KEYPAIR_FILE }}
+  PRIVATE_KEYPAIR_NAME: ${{ secrets.PRIVATE_KEYPAIR_NAME }}
+  PRIVATE_KEYPAIR_SECRET: ${{ secrets.PRIVATE_KEYPAIR_SECRET }}
+  ## PROVISION_TERRAFORM
+  ## TARGET_WORKSPACE
+  ## UPDATE_PYTHON_LATEST
+  ## UPDATE_SYSTEM_LATEST
+####----------------------------------------------------------------------------
+jobs:
+  configure-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+####----------------------------------------------------------------------------
+      ## Privision Access KeyPair
+      - name: Provisioning Access
+        uses: ./
+        id: provision-access
+        with:
+          private-keypair-file: ${PRIVATE_KEYPAIR_FILE}
+          private-keypair-secret: "${PRIVATE_KEYPAIR_SECRET}"
+        continue-on-error: false
+####----------------------------------------------------------------------------
+      ## Display Environment
+      - name: Display Environment
+        id: display_environment
+        run: |
+          echo -e "Displaying Enviroment Settings ..." ;
+          echo -e "Access KeyPair File: ${PRIVATE_KEYPAIR_FILE}" ;
+          echo -e "Access KeyPair Name: ${PRIVATE_KEYPAIR_NAME}" ;
+          echo -e "Access KeyPair Secret: \n${PRIVATE_KEYPAIR_SECRET}" ;
