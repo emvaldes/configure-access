@@ -1,0 +1,42 @@
+
+function validate_accesskey () {
+    [[ ${#aws_default_profile} -eq 0 ]] && aws_default_profile="${AWS_DEFAULT_PROFILE}" ;
+    [[ ${#aws_default_region} -eq 0 ]] && aws_default_region="${AWS_DEFAULT_REGION}" ;
+    private_sshkey="${github_workspace}/.ssh/id_rsa" ;
+    public_sshkey="${github_workspace}/.ssh/id_rsa.pub" ;
+    cat /dev/null > ${public_sshkey} ;
+    chmod 0644 ${public_sshkey} ;
+    echo -e "\nListing SSH Private-Key: " ;
+    ls -al ${private_sshkey} ; echo -e ;
+    ## cat ${private_sshkey} ; echo -e ;
+    ssh-keygen -y -f ${private_sshkey} > ${public_sshkey} ;
+    echo -e "Generating SSH Public-Key ..." ;
+    ls -al ${public_sshkey} ; echo -e ;
+    cat ${public_sshkey} ; echo -e ;
+    tree ${github_workspace}/.ssh 2>/dev/null ;
+    echo -e "\nInspecting SSH Public-Key Fingerprint ..." ;
+    ssh-keygen -l -E md5 -f ${public_sshkey} ;
+    local_fingerprint="$(
+        ssh-keygen -e -f ${public_sshkey} -m pkcs8 \
+        | openssl pkey -pubin -outform der \
+        | openssl md5 -c \
+        | sed -e 's|(stdin)= ||'
+      )" ;
+    echo -e "\nFetching AWS EC2 Key-Pair Fingerprint ... ${local_fingerprint} ? " ;
+    describe_keypairs="$(
+        aws --profile ${aws_default_profile} \
+            --region ${aws_default_region} \
+            ec2 describe-key-pairs \
+            --key-name ${PRIVATE_KEYPAIR_NAME}
+      )" ;
+    echo -e "${describe_keypairs}" | jq '.' ;
+    remote_fingerprint="$(
+        echo -e "${describe_keypairs}" \
+        | jq '.KeyPairs[]|.KeyFingerprint' --raw-output
+      )" ;
+    if [[ ${local_fingerprint} != ${remote_fingerprint} ]]; then
+      echo -e "\nWarning: Private/Public SSH-Key does not match! \n";
+      exit 3 ;
+    fi ;
+    return 0 ;
+  };

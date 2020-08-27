@@ -1,0 +1,94 @@
+name: Configure Access
+description: 'Configure Access'
+
+####----------------------------------------------------------------------------
+inputs:
+  action-functions:
+    description: 'Configure Access Functions'
+    required: false
+    default: 'action.functions'
+  private-keypair-file:
+    description: 'KeyPair Private Key'
+    required: false
+    default: '.ssh/id_rsa'
+  private-keypair-name:
+    description: 'KeyPair Private Name'
+    required: false
+    default: 'devops'
+  private-keypair-secret:
+    description: 'KeyPair Private Data'
+    required: true
+    default: ''
+  repository--configure-access:
+    description: 'Configure-Access GitHub Repository'
+    required: false
+    default: 'emvaldes/configure-access'
+####----------------------------------------------------------------------------
+outputs:
+  private-keypair-file:
+    description: "Exporting Private KeyPair File"
+    value: ${{ steps.configure-access.outputs.private-keypair-file }}
+  private-keypair-name:
+    description: "Exporting Private KeyPair Name"
+    value: ${{ steps.configure-access.outputs.private-keypair-name }}
+  private-keypair-secret:
+    description: "Exporting Private KeyPair Secret"
+    value: ${{ steps.configure-access.outputs.private-keypair-secret }}
+####----------------------------------------------------------------------------
+runs:
+  using: "composite"
+  steps:
+    ####------------------------------------------------------------------------
+    ## Configure Access KeyPair
+    - name: Configure Access
+      id: configure-access
+      shell: bash
+      run: |
+        ####--------------------------------------------------------------------
+        github_usercontent="https://raw.githubusercontent.com" ;
+        usercontent_repository="${github_usercontent}/${{ inputs.repository--configure-access }}/master" ;
+        ####--------------------------------------------------------------------
+        wget --quiet --output-document=./${{ inputs.action-functions }} ${usercontent_repository}/${{ inputs.action-functions }} ;
+        source ${{ inputs.action-functions }} ;
+        ####--------------------------------------------------------------------
+        private_keypair_secret="${{ inputs.private-keypair-secret }}" ;
+        if [[ "${#private_keypair_secret}" -eq 0 ]]; then
+          echo "Warning: Private KeyPair (Content) is empty! " ;
+          exit 1 ;
+        fi ;
+        ####--------------------------------------------------------------------
+        export private_keypair_file="${{ github.workspace }}/${{ inputs.private-keypair-file }}" ;
+        export private_keypair_name="${{ inputs.private-keypair-name }}" ;
+        ####--------------------------------------------------------------------
+        echo "::set-output name=private-keypair-file::${private_keypair_file}" ;
+        echo "::set-output name=private-keypair-name::${private_keypair_name}" ;
+        ####--------------------------------------------------------------------
+        mkdir -p ${private_keypair_file%\/*} ;
+        cat /dev/null > ${private_keypair_file} ;
+        echo -en "${private_keypair_secret[@]}*" \
+          | sed -e 's|\*OPENSSH\*PRIVATE\*KEY| OPENSSH PRIVATE KEY|g' \
+          | tr '*' '\n' \
+        > ${private_keypair_file} ;
+        ####--------------------------------------------------------------------
+        ## echo "::set-output name=private-keypair-secret::$(cat ${private_keypair_file})" ;
+        chmod 0400 ${private_keypair_file} ;
+        keypair_length=$(
+            wc -c ${private_keypair_file} | awk '{print $1}'
+          ) ;
+        if [[ ${keypair_length} -gt 0 ]]; then
+                ## Validating Access-Key match
+                github_workspace="${{ github.workspace }}";
+                validate_accesskey ; result=${?} ;
+                if [[ ${result} -eq 0 ]]; then
+                  echo -e "\nAWS Access Key-Pair file length: [${keypair_length}] ..." ;
+                  echo -e ;
+                  echo "::set-env name=PRIVATE_KEYPAIR_FILE::${private_keypair_file}" ;
+                  echo "::set-env name=PRIVATE_KEYPAIR_NAME::${private_keypair_name}" ;
+                  echo "::set-env name=PRIVATE_KEYPAIR_SECRET::${private_keypair_secret[@]}" ;
+                fi ;
+          else  echo -e "\nWarning: Access Key-Pair is invalid [${keypair_length}]! " ;
+                exit -2 ;
+        fi ;
+        ####--------------------------------------------------------------------
+        echo -e "\nCompleted! " ;
+        ####--------------------------------------------------------------------

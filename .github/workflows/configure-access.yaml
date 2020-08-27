@@ -1,0 +1,119 @@
+name: GitHub Actions - Configure Access
+on:
+
+####----------------------------------------------------------------------------
+  workflow_dispatch:
+    name: Manual Deployment
+    description: 'Triggering Manual Deployment'
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+      tags:
+        description: 'Configure Access'
+####----------------------------------------------------------------------------
+  push:
+    branches: [ master ]
+    paths:
+      - action.yaml
+####----------------------------------------------------------------------------
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_DEFAULT_ACCOUNT: ${{ secrets.AWS_DEFAULT_ACCOUNT }}
+  AWS_DEFAULT_PROFILE: ${{ secrets.AWS_DEFAULT_PROFILE }}
+  AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  ## DEPLOY_TERRAFORM
+  ## DESTROY_TERRAFORM
+  ## DEVOPS_ASSUMEROLE_POLICY
+  ## DEVOPS_BOUNDARIES_POLICY
+  ## DEVOPS_ACCESS_POLICY
+  DEVOPS_ACCESS_ROLE: ${{ secrets.DEVOPS_ACCESS_ROLE }}
+  DEVOPS_ACCOUNT_NAME: ${{ secrets.DEVOPS_ACCOUNT_NAME }}
+  ## DYNAMODB_DEFAULT_REGION: ${{ secrets.DYNAMODB_DEFAULT_REGION }}
+  ## INSPECT_DEPLOYMENT
+  PRIVATE_KEYPAIR_FILE: ${{ secrets.PRIVATE_KEYPAIR_FILE }}
+  PRIVATE_KEYPAIR_NAME: ${{ secrets.PRIVATE_KEYPAIR_NAME }}
+  PRIVATE_KEYPAIR_SECRET: ${{ secrets.PRIVATE_KEYPAIR_SECRET }}
+  ## PROVISION_TERRAFORM
+  ## TARGET_WORKSPACE
+  ## UPDATE_PYTHON_LATEST
+  ## UPDATE_SYSTEM_LATEST
+####----------------------------------------------------------------------------
+jobs:
+  configure-access:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+####----------------------------------------------------------------------------
+      ## Environment Variables
+      - name: Environment Variables
+        id: environment-variables
+        run: |
+          ####------------------------------------------------------------------
+          ## Parsing GitHub Action - Workflow dispatch (limited to 10 input-params)
+          echo -e "Processing File|Input-based Parameters ... [ 1-10 ]\n" ;
+          ####------------------------------------------------------------------
+          eval "echo '::set-env name=SESSION_TIMESTAMP::$(date +"%y%m%d%H%M%S")'" ;
+          # echo '::set-env name=AWS_ACCESS_KEY_ID::${{ secrets.AWS_ACCESS_KEY_ID }}'
+          # echo '::set-env name=AWS_SECRET_ACCESS_KEY::${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+####----------------------------------------------------------------------------
+      ## System Requirements
+      - name: System Requirements
+        uses: emvaldes/system-requirements@master
+        id: system-requirements
+        with:
+          install-awscli-tool: true
+          # install-custom-tools: 'netcat'
+          install-default-tools: true
+          # install-terraform-cli: latest
+          # update-operating-system: ${UPDATE_SYSTEM_LATEST}
+          # update-python-version: ${UPDATE_PYTHON_LATEST}
+        continue-on-error: false
+####----------------------------------------------------------------------------
+      ## Installed Packages
+      - name: Installed Packages
+        id: installed-packages
+        shell: bash
+        run: |
+          ####------------------------------------------------------------------
+          jq --version;
+          tree --version;
+          aws --version;
+####----------------------------------------------------------------------------
+      ## Requesting Credentials
+      - name: Requesting Credentials
+        uses: emvaldes/generate-credentials@master
+        id: request-credentials
+        with:
+          aws-access-key-id: ${AWS_ACCESS_KEY_ID}
+          aws-default-account: ${AWS_DEFAULT_ACCOUNT}
+          aws-default-profile: ${AWS_DEFAULT_PROFILE}
+          aws-default-region: ${AWS_DEFAULT_REGION}
+          aws-secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+          devops-access-role: ${DEVOPS_ACCESS_ROLE}
+          devops-account-name: ${DEVOPS_ACCOUNT_NAME}
+          session-timestamp: "DevOpsPipeline--${SESSION_TIMESTAMP}"
+        continue-on-error: false
+####----------------------------------------------------------------------------
+      ## Privision Access KeyPair
+      - name: Provisioning Access
+        uses: ./
+        id: provision-access
+        with:
+          private-keypair-file: ${PRIVATE_KEYPAIR_FILE}
+          private-keypair-name: ${PRIVATE_KEYPAIR_NAME}
+          private-keypair-secret: "${PRIVATE_KEYPAIR_SECRET}"
+        continue-on-error: false
+####----------------------------------------------------------------------------
+      ## Display Environment
+      - name: Display Environment
+        id: display_environment
+        run: |
+          echo -e "\nDisplaying Enviroment Settings ...\n" ;
+          echo -e "Access KeyPair File: '${PRIVATE_KEYPAIR_FILE}'" ;
+          echo -e "Access KeyPair Name: '${PRIVATE_KEYPAIR_NAME}'" ;
+          echo -e "Access KeyPair Secret: '${PRIVATE_KEYPAIR_SECRET}'" ;
+####----------------------------------------------------------------------------
