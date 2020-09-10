@@ -19,13 +19,13 @@ inputs:
 outputs:
   private-keypair-file:
     description: "Exporting Private KeyPair File"
-    value: ${{ steps.configure-keypair.outputs.private-keypair-file }}
+    value: ${{ steps.configure-access.outputs.private-keypair-file }}
   private-keypair-name:
     description: "Exporting Private KeyPair Name"
-    value: ${{ steps.configure-keypair.outputs.private-keypair-name }}
+    value: ${{ steps.configure-access.outputs.private-keypair-name }}
   private-keypair-secret:
     description: "Exporting Private KeyPair Secret"
-    value: ${{ steps.configure-keypair.outputs.private-keypair-secret }}
+    value: ${{ steps.configure-access.outputs.private-keypair-secret }}
 ####----------------------------------------------------------------------------
 runs:
   using: "composite"
@@ -43,6 +43,7 @@ runs:
           exit 1 ;
         fi ;
         export private_keypair_file="${{ github.workspace }}/${{ inputs.private-keypair-file }}" ;
+        export private_keypair_name="${{ github.workspace }}/${{ inputs.private-keypair-name }}" ;
         ####----------------------------------------------------------------------------
         mkdir -p ${private_keypair_file%\/*} ;
         cat /dev/null > ${private_keypair_file} ;
