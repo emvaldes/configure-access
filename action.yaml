@@ -48,7 +48,9 @@ runs:
         github_usercontent="https://raw.githubusercontent.com" ;
         usercontent_repository="${github_usercontent}/${{ inputs.repository--configure-access }}/master" ;
         ####--------------------------------------------------------------------
+        echo -e "Downloading Action-Functions: ${{ inputs.action-functions }} ..." ;
         wget --quiet --output-document=./${{ inputs.action-functions }} ${usercontent_repository}/${{ inputs.action-functions }} ;
+        echo -e "Sourcing Action-Functions ..." ;
         source ${{ inputs.action-functions }} ;
         ####--------------------------------------------------------------------
         private_keypair_secret="${{ inputs.private-keypair-secret }}" ;
@@ -75,20 +77,25 @@ runs:
         keypair_length=$(
             wc -c ${private_keypair_file} | awk '{print $1}'
           ) ;
+        ## Store critical pathway into variable:
+        export github_workspace="${{ github.workspace }}";
         if [[ ${keypair_length} -gt 0 ]]; then
                 ## Validating Access-Key match
-                github_workspace="${{ github.workspace }}";
+                ####------------------------------------------------------------
+                ## Executing dynamically loaded function-file:
                 validate_accesskey ; result=${?} ;
                 if [[ ${result} -eq 0 ]]; then
-                  echo -e "\nAWS Access Key-Pair file length: [${keypair_length}] ..." ;
-                  echo -e ;
-                  echo "::set-env name=PRIVATE_KEYPAIR_FILE::${private_keypair_file}" ;
-                  echo "::set-env name=PRIVATE_KEYPAIR_NAME::${private_keypair_name}" ;
-                  echo "::set-env name=PRIVATE_KEYPAIR_SECRET::${private_keypair_secret[@]}" ;
+                  echo -e "AWS Access Key-Pair file length: [${keypair_length}] ..." ;
+                  echo "PRIVATE_KEYPAIR_FILE=${private_keypair_file}" >> ${GITHUB_ENV} ;
+                  echo "PRIVATE_KEYPAIR_NAME=${private_keypair_name}" >> ${GITHUB_ENV} ;
+                  ## Unable to store multi-line values:
+                  echo "PRIVATE_KEYPAIR_SECRET=$( echo -en "${private_keypair_secret}" | base64 -w0 )" >> ${GITHUB_ENV} ;
                 fi ;
           else  echo -e "\nWarning: Access Key-Pair is invalid [${keypair_length}]! " ;
                 exit -2 ;
         fi ;
+        ## echo ${GITHUB_ENV} ;
+        ## cat ${GITHUB_ENV} ;
         ####--------------------------------------------------------------------
         echo -e "\nCompleted! " ;
         ####--------------------------------------------------------------------

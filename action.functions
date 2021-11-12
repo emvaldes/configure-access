@@ -1,16 +1,27 @@
-
 function validate_accesskey () {
-    [[ ${#aws_default_profile} -eq 0 ]] && aws_default_profile="${AWS_DEFAULT_PROFILE}" ;
+    [[ ${#aws_default_profile} -eq 0 ]] && aws_default_profile="$( echo -e "${AWS_DEFAULT_PROFILE}" | sed -e 's|"||g' )" ;
     [[ ${#aws_default_region} -eq 0 ]] && aws_default_region="${AWS_DEFAULT_REGION}" ;
+    ## Private SSH-Key file:
     private_sshkey="${github_workspace}/.ssh/id_rsa" ;
-    public_sshkey="${github_workspace}/.ssh/id_rsa.pub" ;
-    cat /dev/null > ${public_sshkey} ;
-    chmod 0644 ${public_sshkey} ;
+    [[ ! -e ${private_sshkey} ]] && cat /dev/null > ${private_sshkey} ;
+    ls -al ${private_sshkey} ; echo -e ;
     echo -e "\nListing SSH Private-Key: " ;
+    ## Identifying if content is encoded:
+    if [[ $( wc -l ${private_sshkey} | awk '{print $1}' ) -eq 1 ]]; then
+      cp "${private_sshkey}" "${private_sshkey}.encoded" ;
+      chmod 0764 ${private_sshkey} ;
+      cat "${private_sshkey}.encoded" | base64 --decode > ${private_sshkey} ;
+      rm "${private_sshkey}.encoded" ;
+    fi;
+    chmod 0400 ${private_sshkey} ;
     ls -al ${private_sshkey} ; echo -e ;
     ## cat ${private_sshkey} ; echo -e ;
-    ssh-keygen -y -f ${private_sshkey} > ${public_sshkey} ;
+    ## Public SSH-Key file:
+    public_sshkey="${github_workspace}/.ssh/id_rsa.pub" ;
+    [[ ! -e ${public_sshkey} ]] && cat /dev/null > ${public_sshkey} ;
     echo -e "Generating SSH Public-Key ..." ;
+    ssh-keygen -y -f ${private_sshkey} > ${public_sshkey} ;
+    chmod 0644 ${public_sshkey} ;
     ls -al ${public_sshkey} ; echo -e ;
     cat ${public_sshkey} ; echo -e ;
     tree ${github_workspace}/.ssh 2>/dev/null ;
@@ -23,6 +34,19 @@ function validate_accesskey () {
         | sed -e 's|(stdin)= ||'
       )" ;
     echo -e "\nFetching AWS EC2 Key-Pair Fingerprint ... ${local_fingerprint} ? " ;
+    ## echo -e "\nListing AWS Default-Config file: ..." ;
+    export AWS_CONFIG_FILE="${github_workspace}/.aws/config" ;
+    ## cat ${AWS_CONFIG_FILE} ;
+    ## echo -e "\nListing AWS Credentials file: ..." ;
+    export AWS_SHARED_CREDENTIALS_FILE="${github_workspace}/.aws/credentials" ;
+    ## cat ${AWS_SHARED_CREDENTIALS_FILE} ;
+    echo -e ;
+    ## Fetching Keypair Fingerprint:
+    echo -e "aws --profile ${aws_default_profile} \ " ;
+    echo -e "    --region ${aws_default_region} \ " ;
+    echo -e "    ec2 describe-key-pairs \ " ;
+    echo -e "    --key-name ${PRIVATE_KEYPAIR_NAME}" ;
+    ## Exporting AWS environment variables:
     describe_keypairs="$(
         aws --profile ${aws_default_profile} \
             --region ${aws_default_region} \
@@ -38,5 +62,6 @@ function validate_accesskey () {
       echo -e "\nWarning: Private/Public SSH-Key does not match! \n";
       exit 3 ;
     fi ;
+    echo -e "\nCompleted validating access-key! " ;
     return 0 ;
   };

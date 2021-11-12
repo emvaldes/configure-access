@@ -52,13 +52,11 @@ jobs:
       - name: Environment Variables
         id: environment-variables
         run: |
-          ####------------------------------------------------------------------
           ## Parsing GitHub Action - Workflow dispatch (limited to 10 input-params)
           echo -e "Processing File|Input-based Parameters ... [ 1-10 ]\n" ;
-          ####------------------------------------------------------------------
-          eval "echo '::set-env name=SESSION_TIMESTAMP::$(date +"%y%m%d%H%M%S")'" ;
-          # echo '::set-env name=AWS_ACCESS_KEY_ID::${{ secrets.AWS_ACCESS_KEY_ID }}'
-          # echo '::set-env name=AWS_SECRET_ACCESS_KEY::${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+          echo "SESSION_TIMESTAMP=$(date +"%y%m%d%H%M%S")" >> ${GITHUB_ENV} ;
+          ## echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ${GITHUB_ENV} ;
+          ## echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ${GITHUB_ENV} ;
 ####----------------------------------------------------------------------------
       ## System Requirements
       - name: System Requirements
@@ -78,10 +76,10 @@ jobs:
         id: installed-packages
         shell: bash
         run: |
-          ####------------------------------------------------------------------
-          jq --version;
-          tree --version;
-          aws --version;
+          jq --version 2>/dev/null;
+          tree --version 2>/dev/null;
+          python --version 2>/dev/null;
+          aws --version 2>/dev/null;
 ####----------------------------------------------------------------------------
       ## Requesting Credentials
       - name: Requesting Credentials
@@ -105,7 +103,7 @@ jobs:
         with:
           private-keypair-file: ${PRIVATE_KEYPAIR_FILE}
           private-keypair-name: ${PRIVATE_KEYPAIR_NAME}
-          private-keypair-secret: "${PRIVATE_KEYPAIR_SECRET}"
+          private-keypair-secret: ${PRIVATE_KEYPAIR_SECRET}
         continue-on-error: false
 ####----------------------------------------------------------------------------
       ## Display Environment
@@ -115,5 +113,5 @@ jobs:
           echo -e "\nDisplaying Enviroment Settings ...\n" ;
           echo -e "Access KeyPair File: '${PRIVATE_KEYPAIR_FILE}'" ;
           echo -e "Access KeyPair Name: '${PRIVATE_KEYPAIR_NAME}'" ;
-          echo -e "Access KeyPair Secret: '${PRIVATE_KEYPAIR_SECRET}'" ;
+          echo -e "Access KeyPair Secret: '$(echo -en "${PRIVATE_KEYPAIR_SECRET}" | base64 --decode )'" ;
 ####----------------------------------------------------------------------------
