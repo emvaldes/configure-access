@@ -1,101 +1,145 @@
-name: Configure Access
-description: 'Configure Access'
+name: Configure System Access
+description: 'Configure System Access'
 
 ####----------------------------------------------------------------------------
+
 inputs:
+
   action-functions:
     description: 'Configure Access Functions'
     required: false
     default: 'action.functions'
+
   private-keypair-file:
     description: 'KeyPair Private Key'
     required: false
-    default: '.ssh/id_rsa'
+    default: 'devops.pem'
+
   private-keypair-name:
     description: 'KeyPair Private Name'
     required: false
     default: 'devops'
+
   private-keypair-secret:
     description: 'KeyPair Private Data'
     required: true
     default: ''
-  repository--configure-access:
-    description: 'Configure-Access GitHub Repository'
-    required: false
-    default: 'emvaldes/configure-access'
+
 ####----------------------------------------------------------------------------
+
 outputs:
+
   private-keypair-file:
     description: "Exporting Private KeyPair File"
-    value: ${{ steps.configure-access.outputs.private-keypair-file }}
+    value: ${{ steps.export-keypair-items.outputs.private-keypair-file }}
+
   private-keypair-name:
     description: "Exporting Private KeyPair Name"
-    value: ${{ steps.configure-access.outputs.private-keypair-name }}
+    value: ${{ steps.export-keypair-items.outputs.private-keypair-name }}
+
   private-keypair-secret:
     description: "Exporting Private KeyPair Secret"
-    value: ${{ steps.configure-access.outputs.private-keypair-secret }}
+    value: ${{ steps.provision-keypair-file.outputs.private-keypair-secret }}
+
 ####----------------------------------------------------------------------------
+
 runs:
   using: "composite"
   steps:
-    ####------------------------------------------------------------------------
-    ## Configure Access KeyPair
-    - name: Configure Access
-      id: configure-access
+
+    - name: Configure System Access
+      id: configure-system-access
       shell: bash
       run: |
-        ####--------------------------------------------------------------------
-        github_usercontent="https://raw.githubusercontent.com" ;
-        usercontent_repository="${github_usercontent}/${{ inputs.repository--configure-access }}/master" ;
-        ####--------------------------------------------------------------------
-        echo -e "Downloading Action-Functions: ${{ inputs.action-functions }} ..." ;
-        wget --quiet --output-document=./${{ inputs.action-functions }} ${usercontent_repository}/${{ inputs.action-functions }} ;
-        echo -e "Sourcing Action-Functions ..." ;
-        source ${{ inputs.action-functions }} ;
+
         ####--------------------------------------------------------------------
         private_keypair_secret="${{ inputs.private-keypair-secret }}" ;
         if [[ "${#private_keypair_secret}" -eq 0 ]]; then
           echo "Warning: Private KeyPair (Content) is empty! " ;
           exit 1 ;
         fi ;
+        echo "PRIVATE_KEYPAIR_SECRET=${private_keypair_secret}" >> ${GITHUB_ENV} ;
         ####--------------------------------------------------------------------
-        export private_keypair_file="${{ github.workspace }}/${{ inputs.private-keypair-file }}" ;
-        export private_keypair_name="${{ inputs.private-keypair-name }}" ;
+
+    - name: Export Keypair Items
+      id: export-keypair-items
+      shell: bash
+      run: |
+
         ####--------------------------------------------------------------------
-        echo "::set-output name=private-keypair-file::${private_keypair_file}" ;
-        echo "::set-output name=private-keypair-name::${private_keypair_name}" ;
+        private_keypair_file="${{ github.workspace }}/.ssh/${{ inputs.private-keypair-file }}" ;
+        echo "PRIVATE_KEYPAIR_FILE=${private_keypair_file}" >> ${GITHUB_ENV} ;
         ####--------------------------------------------------------------------
-        mkdir -p ${private_keypair_file%\/*} ;
-        cat /dev/null > ${private_keypair_file} ;
-        echo -en "${private_keypair_secret[@]}*" \
-          | sed -e 's|\*OPENSSH\*PRIVATE\*KEY| OPENSSH PRIVATE KEY|g' \
-          | tr '*' '\n' \
-        > ${private_keypair_file} ;
+        private_keypair_name="${{ inputs.private-keypair-name }}" ;
+        echo "PRIVATE_KEYPAIR_NAME=${private_keypair_name}" >> ${GITHUB_ENV} ;
         ####--------------------------------------------------------------------
-        ## echo "::set-output name=private-keypair-secret::$(cat ${private_keypair_file})" ;
-        chmod 0400 ${private_keypair_file} ;
+        echo "private-keypair-file=${private_keypair_file}" >> ${GITHUB_OUTPUT} ;
+        echo "private-keypair-name=${private_keypair_name}" >> ${GITHUB_OUTPUT} ;
+        ####--------------------------------------------------------------------
+
+    - name: Provision Keypair File
+      id: provision-keypair-file
+      shell: bash
+      run: |
+
+        ####--------------------------------------------------------------------
+        mkdir -p "${{ github.workspace }}/.ssh" ;
+        [[ ! -e ${{ env.PRIVATE_KEYPAIR_FILE }} ]] && cat /dev/null > ${{ env.PRIVATE_KEYPAIR_FILE }} ;
+        echo -e "\nDecode/Extract Private SSH Key ..." ;
+        echo -en "${{ env.PRIVATE_KEYPAIR_SECRET }}" | base64 --decode > ${{ env.PRIVATE_KEYPAIR_FILE }} ;
+        chmod 0400 ${{ env.PRIVATE_KEYPAIR_FILE }} ;
         keypair_length=$(
-            wc -c ${private_keypair_file} | awk '{print $1}'
+            wc -c ${{ env.PRIVATE_KEYPAIR_FILE }} | awk '{print $1}'
           ) ;
-        ## Store critical pathway into variable:
-        export github_workspace="${{ github.workspace }}";
+        echo -e "Key Pair Length: ${keypair_length}";
         if [[ ${keypair_length} -gt 0 ]]; then
-                ## Validating Access-Key match
-                ####------------------------------------------------------------
-                ## Executing dynamically loaded function-file:
-                validate_accesskey ; result=${?} ;
-                if [[ ${result} -eq 0 ]]; then
-                  echo -e "AWS Access Key-Pair file length: [${keypair_length}] ..." ;
-                  echo "PRIVATE_KEYPAIR_FILE=${private_keypair_file}" >> ${GITHUB_ENV} ;
-                  echo "PRIVATE_KEYPAIR_NAME=${private_keypair_name}" >> ${GITHUB_ENV} ;
-                  ## Unable to store multi-line values:
-                  echo "PRIVATE_KEYPAIR_SECRET=$( echo -en "${private_keypair_secret}" | base64 -w0 )" >> ${GITHUB_ENV} ;
-                fi ;
+                # echo "private-keypair-secret=$(
+                #     cat ${{ env.PRIVATE_KEYPAIR_FILE }}
+                #   )" >> ${GITHUB_OUTPUT} ;
+                ls -al ${{ env.PRIVATE_KEYPAIR_FILE }} ;
+                ## cat ${{ env.PRIVATE_KEYPAIR_FILE }} ;
+                echo -e ;
           else  echo -e "\nWarning: Access Key-Pair is invalid [${keypair_length}]! " ;
                 exit -2 ;
         fi ;
-        ## echo ${GITHUB_ENV} ;
-        ## cat ${GITHUB_ENV} ;
         ####--------------------------------------------------------------------
-        echo -e "\nCompleted! " ;
+
+    - name: Download Actions functions
+      id: download-action-functions
+      shell: bash
+      run: |
+
+        ####--------------------------------------------------------------------
+        github_usercontent="https://raw.githubusercontent.com" ;
+        usercontent_repository="${github_usercontent}/emvaldes/configure-access/master" ;
+        ####--------------------------------------------------------------------
+        echo -e "\nDownloading Action-Functions: ${{ inputs.action-functions }} ..." ;
+        wget --quiet --output-document=./${{ inputs.action-functions }} ${usercontent_repository}/${{ inputs.action-functions }} ;
+        action_functions="${{ github.workspace }}/action.functions" ;
+        ls -al "${action_functions}" ;
+        echo -e ;
+        echo "ACTION_FUNCTIONS=${action_functions}" >> ${GITHUB_ENV} ;
+        ####--------------------------------------------------------------------
+
+    - name: Validate Keypair credentials
+      id: validate-keypair-credentials
+      shell: bash
+      run: |
+
+        ####--------------------------------------------------------------------
+        echo -e "\nSourcing Action-Functions ..." ;
+        ls -al "${{ env.ACTION_FUNCTIONS }}" ;
+        source "${{ env.ACTION_FUNCTIONS }}" ;
+        ####--------------------------------------------------------------------
+        validate_accesskey "${{ github.workspace }}" \
+                           "${{ env.PRIVATE_KEYPAIR_FILE }}" ;
+        result=${?} ;
+        ####--------------------------------------------------------------------
+        if [[ ${result} -eq 0 ]]; then
+          # echo -e "AWS Access Key-Pair file length: [${keypair_length}] ..." ;
+          ## Unable to store multi-line values:
+          echo "PRIVATE_KEYPAIR_SECRET=$(
+              echo -en "${{ env.PRIVATE_KEYPAIR_SECRET }}" | base64 -w0
+            )" >> ${GITHUB_ENV} ;
+        fi ;
         ####--------------------------------------------------------------------

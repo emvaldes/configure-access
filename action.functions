@@ -1,46 +1,58 @@
 function validate_accesskey () {
-    [[ ${#aws_default_profile} -eq 0 ]] && aws_default_profile="$( echo -e "${AWS_DEFAULT_PROFILE}" | sed -e 's|"||g' )" ;
-    [[ ${#aws_default_region} -eq 0 ]] && aws_default_region="${AWS_DEFAULT_REGION}" ;
-    ## Private SSH-Key file:
-    private_sshkey="${github_workspace}/.ssh/id_rsa" ;
-    [[ ! -e ${private_sshkey} ]] && cat /dev/null > ${private_sshkey} ;
-    ls -al ${private_sshkey} ; echo -e ;
-    echo -e "\nListing SSH Private-Key: " ;
-    ## Identifying if content is encoded:
-    if [[ $( wc -l ${private_sshkey} | awk '{print $1}' ) -eq 1 ]]; then
-      cp "${private_sshkey}" "${private_sshkey}.encoded" ;
-      chmod 0764 ${private_sshkey} ;
-      cat "${private_sshkey}.encoded" | base64 --decode > ${private_sshkey} ;
-      rm "${private_sshkey}.encoded" ;
-    fi;
-    chmod 0400 ${private_sshkey} ;
-    ls -al ${private_sshkey} ; echo -e ;
-    ## cat ${private_sshkey} ; echo -e ;
+    [[ ${#1} -gt 0 ]] && local github_workspace="${1}" || return 1 ;
+    [[ ${#2} -gt 0 ]] && {
+        local private_sshkey="${2}" ;
+        ## file ${private_sshkey} ;
+      } || {return 1} ;
+    ## Initializing AWS Default Profile
+    [[ ${#aws_default_profile} -eq 0 ]] && \
+      aws_default_profile="$(
+          echo -e "${AWS_DEFAULT_PROFILE}" | sed -e 's|"||g'
+        )" ;
+    ## Initializing AWS Default Region
+    [[ ${#aws_default_region} -eq 0 ]] && \
+      aws_default_region="${AWS_DEFAULT_REGION}" ;
     ## Public SSH-Key file:
-    public_sshkey="${github_workspace}/.ssh/id_rsa.pub" ;
+    public_sshkey="${private_sshkey/.pem/}.pub" ;
+    ## Initializing Public SSH KeyPair
     [[ ! -e ${public_sshkey} ]] && cat /dev/null > ${public_sshkey} ;
-    echo -e "Generating SSH Public-Key ..." ;
+    echo -e "\nGenerating SSH Public-Key ..." ;
     ssh-keygen -y -f ${private_sshkey} > ${public_sshkey} ;
     chmod 0644 ${public_sshkey} ;
     ls -al ${public_sshkey} ; echo -e ;
     cat ${public_sshkey} ; echo -e ;
-    tree ${github_workspace}/.ssh 2>/dev/null ;
-    echo -e "\nInspecting SSH Public-Key Fingerprint ..." ;
-    ssh-keygen -l -E md5 -f ${public_sshkey} ;
-    local_fingerprint="$(
-        ssh-keygen -e -f ${public_sshkey} -m pkcs8 \
-        | openssl pkey -pubin -outform der \
-        | openssl md5 -c \
-        | sed -e 's|(stdin)= ||'
-      )" ;
-    echo -e "\nFetching AWS EC2 Key-Pair Fingerprint ... ${local_fingerprint} ? " ;
+    tree -a ${github_workspace}/.ssh 2>/dev/null ;
+    egrep ' RSA ' ${private_sshkey} 2>&1>/dev/null ;
+    result=$? ;
+    if [[ ${result} -eq 0 ]]; then
+            private_keypar_type='rsa-pem';
+      else  private_keypar_type='openssh'
+    fi ;
+    echo -e "\nPrivate Key Type: ${private_keypar_type}" ;
+    ## Reference -> https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/verify-keys.html
+    if [[ ${private_keypar_type} == 'rsa-pem' ]]; then
+            ## Processing AWS Exported Private Key Pair (RSA PEM)
+            local_fingerprint="$(
+                openssl pkcs8 -in ${private_sshkey} \
+                              -inform PEM -outform DER -topk8 -nocrypt \
+                | openssl sha1 -c \
+                | awk '{print $2}'
+              )" ;
+      else  ## Processing AWS Imported Public Key Pair
+            local_fingerprint="$(
+                ssh-keygen -ef ${private_sshkey} -m PEM \
+                | openssl rsa -RSAPublicKey_in -outform DER \
+                | openssl md5 -c \
+                | awk '{print $2}'
+              )" ;
+    fi ;
+    echo -e "Fetching AWS EC2 Key-Pair Fingerprint ... ${local_fingerprint}\n" ;
     ## echo -e "\nListing AWS Default-Config file: ..." ;
     export AWS_CONFIG_FILE="${github_workspace}/.aws/config" ;
     ## cat ${AWS_CONFIG_FILE} ;
     ## echo -e "\nListing AWS Credentials file: ..." ;
     export AWS_SHARED_CREDENTIALS_FILE="${github_workspace}/.aws/credentials" ;
     ## cat ${AWS_SHARED_CREDENTIALS_FILE} ;
-    echo -e ;
     ## Fetching Keypair Fingerprint:
     echo -e "aws --profile ${aws_default_profile} \ " ;
     echo -e "    --region ${aws_default_region} \ " ;
@@ -59,7 +71,7 @@ function validate_accesskey () {
         | jq '.KeyPairs[]|.KeyFingerprint' --raw-output
       )" ;
     if [[ ${local_fingerprint} != ${remote_fingerprint} ]]; then
-      echo -e "\nWarning: Private/Public SSH-Key does not match! \n";
+      echo -e "\nWarning: Private/Public SSH-Key does not match! \n" ;
       exit 3 ;
     fi ;
     echo -e "\nCompleted validating access-key! " ;
