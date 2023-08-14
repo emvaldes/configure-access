@@ -36,10 +36,6 @@ AWSCLI_PACKAGE             AWS CLI Package (e.g.: awscli-exe-linux-x86_64.zip)
 VERBOSE_MODE               Identify verbosity level (false)
 ```
 ```console
-TERRAFORM_CLI              Install Terraform CLI (false)
-TERRAFORM_VERSION          Terraform specific target version (1.5.4)
-```
-```console
 AWS_DEFAULT_PROFILE        The AWS Credentials Default User (e.g.: default).
 AWS_DEFAULT_REGION         The AWS Default Region (e.g.: us-east-1)
 
