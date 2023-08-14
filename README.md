@@ -16,8 +16,10 @@ GitHub Actions : DevOps As A Service (DaaS) - Configure Access
 
 ```console
 AWS_ACCESS_KEY_ID          Service-Account AWS Access Key-Id (e.g.: AKIA2...VT7DU).
-AWS_DEFAULT_ACCOUNT        The AWS Account number (e.g.: 123456789012).
 AWS_SECRET_ACCESS_KEY      Service-Account AWS Secret Access Key (e.g.: zBqDUNyQ0G...IbVyamSCpe)
+```
+```console
+AWS_DEFAULT_ACCOUNT        The AWS Account number (e.g.: 123456789012).
 ```
 ```console
 PRIVATE_KEYPAIR_SECRET     Terraform AWS KeyPair (PEM, Private file)
