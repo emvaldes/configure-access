@@ -62,6 +62,9 @@ runs:
       shell: bash
       run: |
 
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
+
         ####--------------------------------------------------------------------
         ## Enabling Debuger-mode:
         [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
@@ -86,6 +89,9 @@ runs:
       shell: bash
       run: |
 
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
+
         ####--------------------------------------------------------------------
         private_keypair_file="${{ github.workspace }}/.ssh/${{ inputs.private-keypair-file }}" ;
         echo "PRIVATE_KEYPAIR_FILE=${private_keypair_file}" >> ${GITHUB_ENV} ;
@@ -101,6 +107,9 @@ runs:
       id: provision-keypair-file
       shell: bash
       run: |
+
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
 
         ####--------------------------------------------------------------------
         mkdir -p "${{ github.workspace }}/.ssh" ;
@@ -129,6 +138,9 @@ runs:
       shell: bash
       run: |
 
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
+
         ####--------------------------------------------------------------------
         github_usercontent="https://raw.githubusercontent.com" ;
         usercontent_repository="${github_usercontent}/emvaldes/configure-access/master" ;
@@ -145,6 +157,9 @@ runs:
       id: validate-keypair-credentials
       shell: bash
       run: |
+
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
 
         ####--------------------------------------------------------------------
         echo -e "\nSourcing Action-Functions ..." ;
@@ -166,9 +181,4 @@ runs:
 
         ####--------------------------------------------------------------------
         echo -e "\n${completion}\n" ;
-        ####--------------------------------------------------------------------
-
-        ####--------------------------------------------------------------------
-        ## Disabling Debuger-mode:
-        [[ ${{ inputs.debuger-mode }} == true ]] && set +x ;
         ####--------------------------------------------------------------------
