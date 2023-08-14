@@ -25,6 +25,16 @@ inputs:
     required: true
     default: ''
 
+  debuger-mode:
+    description: 'Enabling Shell Debugger'
+    required: false
+    default: false
+
+  verbose-mode:
+    description: 'Enabling Verbosity'
+    required: false
+    default: false
+
 ####----------------------------------------------------------------------------
 
 outputs:
@@ -51,6 +61,16 @@ runs:
       id: configure-system-access
       shell: bash
       run: |
+
+        ####--------------------------------------------------------------------
+        ## Enabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set -x ;
+        ####--------------------------------------------------------------------
+
+        ####--------------------------------------------------------------------
+        completion="Skipping ...! " ;
+        ####--------------------------------------------------------------------
+        completion="Completed! " ;
 
         ####--------------------------------------------------------------------
         private_keypair_secret="${{ inputs.private-keypair-secret }}" ;
@@ -142,4 +162,13 @@ runs:
               echo -en "${{ env.PRIVATE_KEYPAIR_SECRET }}" | base64 -w0
             )" >> ${GITHUB_ENV} ;
         fi ;
+        ####--------------------------------------------------------------------
+
+        ####--------------------------------------------------------------------
+        echo -e "\n${completion}\n" ;
+        ####--------------------------------------------------------------------
+
+        ####--------------------------------------------------------------------
+        ## Disabling Debuger-mode:
+        [[ ${{ inputs.debuger-mode }} == true ]] && set +x ;
         ####--------------------------------------------------------------------
