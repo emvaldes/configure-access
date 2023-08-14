@@ -86,8 +86,8 @@ jobs:
 ####----------------------------------------------------------------------------
 ## Environment Variables
 
-      - name: Session Timestamp
-        id: session-timestamp
+      - name: Access Session Timestamp
+        id: access-session-timestamp
         shell: bash
         run: |
 
@@ -97,9 +97,9 @@ jobs:
 ####----------------------------------------------------------------------------
 ## System Requirements
 
-      - name: System Requirements
+      - name: Access System Requirements
+        id: access-system-requirements
         uses: emvaldes/system-requirements@master
-        id: system-requirements
         with:
 
           verbose-mode: ${VERBOSE_MODE}
@@ -141,20 +141,6 @@ jobs:
           echo -e ;
 
           aws --version 2>/dev/null ;
-
-          terraform --version >/dev/null 2>&1 && {
-              echo -e "\nWhich package: $( which terraform )" ;
-              # whereis terraform ;
-              ls -al $(
-                  dirname $( whereis terraform | cut -d' ' -f2 )
-                )/terraform* 2>/dev/null ;
-              echo -e ;
-              echo -e "Listing current Terraform version:" ;
-              ## TF_LOG=${terraform_loglevel} \
-              terraform --version ;
-              echo -e ;
-            } ;
-
           echo -e ;
 
 ####----------------------------------------------------------------------------
